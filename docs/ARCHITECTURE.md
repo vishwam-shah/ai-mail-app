@@ -109,6 +109,11 @@ inventory and parameters. Two design points worth calling out:
   (navigation, closing the chat) with a ref-guarded `respond()` call in a cleanup effect —
   without that guard, an abandoned tool call permanently breaks the next message in that
   thread (`AI_MissingToolResultsError`).
+- **New instructions supersede pending cards.** While a card waits, CopilotKit reports the
+  run as in-progress, which would normally dead-lock the input. Instead, pending cards
+  register a canceller (`lib/assistant-interrupt.ts`); typing a new message cancels them
+  (resolving their tool calls as "user moved on"), queues the message, and sends it as soon
+  as the interrupted run settles — so the user can always just ask for the next thing.
 - **Contact resolution auto-resolves when it can.** `resolveContact` looks up past
   correspondence; if there's exactly one match (or zero) it calls `respond()` itself from a
   `useEffect`, no UI shown. The picker card only renders — and only then does a human have to

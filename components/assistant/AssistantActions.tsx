@@ -12,6 +12,7 @@ import {
 import { useFilterStore, relativeDaysToDateFrom } from "@/lib/filter-state";
 import { useComposeStore } from "@/lib/compose-store";
 import { fetcher } from "@/lib/fetcher";
+import { registerPendingInteraction } from "@/lib/assistant-interrupt";
 import { ConfirmSendCard } from "./ConfirmSendCard";
 import { EmailPreviewCard, type EmailPreviewItem } from "./EmailPreviewCard";
 import { ContactPickerCard } from "./ContactPickerCard";
@@ -33,13 +34,19 @@ async function fetchMessages(params: Record<string, string | undefined>): Promis
   return data.messages as EmailSummary[];
 }
 
+// Tool results live in the chat history and get re-sent to Groq on EVERY
+// later message — an uncapped page of 50 previews permanently blows the
+// free tier's ~8000 token/request budget and silently kills every follow-up.
+// Keep the result small; the on-screen list still shows everything.
+const MAX_PREVIEW_ITEMS = 8;
+
 function toPreviewItems(messages: EmailSummary[]): EmailPreviewItem[] {
-  return messages.map((m) => ({
+  return messages.slice(0, MAX_PREVIEW_ITEMS).map((m) => ({
     id: m.id,
-    from: m.fromName || m.from,
-    subject: m.subject,
-    snippet: m.snippet,
-    date: m.date,
+    from: (m.fromName || m.from).slice(0, 60),
+    subject: m.subject.slice(0, 60),
+    snippet: m.snippet.slice(0, 60),
+    date: m.date.slice(0, 10),
     isUnread: m.isUnread,
   }));
 }
@@ -65,6 +72,16 @@ function SendConfirmRenderer({ respond }: { respond?: (result: string) => void }
   // message (AI_MissingToolResultsError). Always resolve it on teardown.
   useEffect(() => {
     return () => safeRespond("The confirmation UI was closed before the user responded — treat as cancelled.");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // If the user types a NEW instruction while this card is still waiting,
+  // the new task wins: cancel this send so the thread can move on.
+  useEffect(() => {
+    return registerPendingInteraction(() => {
+      setState("cancelled");
+      safeRespond("The user started a new request instead of confirming — treat this send as cancelled.");
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -162,6 +179,16 @@ function ContactResolver({ name, respond }: { name: string; respond?: (result: C
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A new user instruction supersedes a picker that's still waiting.
+  useEffect(() => {
+    return registerPendingInteraction(() => {
+      if (settled.current) return;
+      settled.current = true;
+      respond?.({ resolved: false, message: "The user started a new request — abandon this contact lookup." });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!data) {
     return <p className="text-sm text-muted-foreground">Looking up &ldquo;{name}&rdquo;...</p>;
   }
@@ -175,6 +202,14 @@ function ContactResolver({ name, respond }: { name: string; respond?: (result: C
         if (settled.current) return;
         settled.current = true;
         respond?.({ resolved: true, email: contact.email, name: contact.name });
+      }}
+      onDismiss={() => {
+        if (settled.current) return;
+        settled.current = true;
+        respond?.({
+          resolved: false,
+          message: "None of the matches were right. Ask the user for the exact email address.",
+        });
       }}
     />
   );

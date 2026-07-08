@@ -10,10 +10,12 @@ export function ContactPickerCard({
   name,
   contacts,
   onSelect,
+  onDismiss,
 }: {
   name: string;
   contacts: Contact[];
   onSelect: (contact: Contact) => void;
+  onDismiss: () => void;
 }) {
   return (
     <AssistantCard eyebrow={`Multiple matches for "${name}"`} eyebrowBordered>
@@ -35,6 +37,13 @@ export function ContactPickerCard({
           </AssistantCardRow>
         ))}
       </AssistantCardList>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="w-full border-t border-white/40 p-2.5 text-center text-xs text-muted-foreground transition-colors hover:bg-white/40 hover:text-foreground dark:border-white/10 dark:hover:bg-white/5"
+      >
+        None of these
+      </button>
     </AssistantCard>
   );
 }
