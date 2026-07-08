@@ -18,6 +18,9 @@ only answering questions in a chat window.
   you to pick when there are several Johns.
 - **Tone rewriting.** Rewrite a draft formal/shorter/longer/friendlier, from the Compose page
   or by asking the assistant.
+- **New-mail notifications.** Incoming inbox mail shows up without a refresh — a lightweight
+  history-diff poll updates the visible list and toasts the sender/subject with a one-click
+  Open action.
 - **Smart cursor pagination**, glassmorphism UI, dark mode, resizable assistant panel.
 
 ## Stack

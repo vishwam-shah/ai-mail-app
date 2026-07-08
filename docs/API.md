@@ -70,6 +70,21 @@ so the model never has to guess an email address from a first name.
 **Response**: `{ contacts: [{ name: string, email: string }, ...] }` — capped at 6, deduped by
 email.
 
+### `GET /api/gmail/sync-status`
+
+Incremental-sync poll used for new-mail notifications. Diffs Gmail's history log
+(`users.history.list`, `historyTypes: messageAdded`, `labelId: INBOX`) against a per-user
+cursor stored in `GmailWatch.historyId`, advances the cursor, and reports what arrived since
+the last poll. First-ever poll baselines the cursor at "now" and reports nothing; a cursor
+older than Gmail's ~7-day history window (404) silently re-baselines instead of failing every
+subsequent poll.
+
+**Response**: `{ count: number, newMessages: EmailSummary[] }` — `newMessages` is hydrated
+metadata for up to 3 of the new arrivals (enough for toasts); `count` covers all of them.
+
+Consumed by `components/mail/NewMailNotifier.tsx`, which polls every 20s, toasts each new
+email (with an Open action), and revalidates any `/api/gmail/messages?*` SWR key on screen.
+
 ### `POST /api/ai/rewrite`
 
 Rewrites a draft's body in a different tone via Groq (independent of the CopilotKit chat —

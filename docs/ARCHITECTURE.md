@@ -71,14 +71,12 @@ API on every request. Prisma only owns:
 
 - `User`, `Account`, `Session`, `VerificationToken` — Auth.js's own tables (via
   `@auth/prisma-adapter`), holding the encrypted OAuth tokens.
-- `GmailWatch`, `EmailCache` — modeled for a `users.watch()` + Cloud Pub/Sub push-sync
-  pipeline (register a watch, receive history-diff webhooks, reconcile into a cache table).
-  **This pipeline is not wired up in the current build** — no watch-registration route,
-  webhook route, or cron renewal exists yet, and both tables are unused. Live-feeling data is
-  achieved more simply today: SWR re-fetches on navigation/mutation (e.g. right after a send),
-  and there's no cross-tab/server push. Wiring the watch→Pub/Sub→webhook→reconcile loop
-  against these two tables is the natural next step if true push sync (a new email appearing
-  without any user action) is required.
+- `GmailWatch` — used today as the **per-user incremental-sync cursor**: `historyId` records
+  how far into Gmail's history log the user has been synced. `/api/gmail/sync-status` diffs
+  `users.history.list(startHistoryId)` against it on every poll and advances it. (The
+  `watchExpiration`/`topicName` columns are reserved for a future `users.watch()` + Pub/Sub
+  push upgrade — see below.)
+- `EmailCache` — modeled for that same push pipeline's reconciliation step; currently unused.
 
 Why live-from-Gmail instead of cache-then-render: it avoids an entire class of staleness bugs
 (cache says read, Gmail says unread) under a tight build timeline, at the cost of a network
@@ -116,11 +114,27 @@ inventory and parameters. Two design points worth calling out:
   `useEffect`, no UI shown. The picker card only renders — and only then does a human have to
   click anything — when there's real ambiguity.
 
+## Real-time sync (new-mail notifications)
+
+New inbox mail appears without a manual refresh via **history-diff polling**:
+`NewMailNotifier` (mounted once in the `(mail)` layout) polls `/api/gmail/sync-status` every
+20 seconds. The route diffs Gmail's history log against the per-user `GmailWatch.historyId`
+cursor, so each poll is a cheap "anything since last time?" call rather than re-listing the
+inbox. When something arrived, the client revalidates whatever message list is on screen and
+shows a toast per email (sender + subject, with a one-click Open action).
+
+Why polling instead of true push (`users.watch()` → Cloud Pub/Sub → webhook): push requires a
+publicly reachable webhook URL, a GCP Pub/Sub topic, and a watch-renewal cron — none of which
+work on a plain `localhost` eval setup. The polling route was deliberately shaped so the push
+pipeline can be added later without changing the client contract: a Pub/Sub webhook would
+advance the same `GmailWatch` cursor server-side, and `sync-status` polls would just get
+cheaper. The `GOOGLE_CLOUD_PROJECT_ID`/`GMAIL_PUBSUB_*` env vars and the
+`watchExpiration`/`topicName` columns are already reserved for it.
+
 ## Known trade-offs / not implemented
 
-- **No real-time push sync.** See [Data model](#data-model) above — `GmailWatch`/`EmailCache`
-  are scaffolded but not wired to a Pub/Sub webhook. New mail appears on next navigation/manual
-  refresh, not automatically.
+- **Sync is poll-based (20s), not push.** See [Real-time sync](#real-time-sync-new-mail-notifications)
+  above for the rationale and the upgrade path.
 - **`/api/copilotkit` is gated by session but not per-user-scoped beyond that** — the Groq
   system prompt and tool definitions are the same for every user; nothing here is
   multi-tenant-sensitive since the runtime itself doesn't touch Gmail directly (the action

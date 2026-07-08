@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { MailSidebar } from "@/components/mail/MailSidebar";
+import { NewMailNotifier } from "@/components/mail/NewMailNotifier";
 import { CopilotProvider } from "@/components/assistant/CopilotProvider";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import { AssistantActions } from "@/components/assistant/AssistantActions";
@@ -28,6 +29,7 @@ export default async function MailLayout({ children }: { children: React.ReactNo
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</main>
           <AssistantPanel />
           <AssistantActions />
+          <NewMailNotifier />
         </div>
       </CopilotProvider>
     </SWRProvider>
