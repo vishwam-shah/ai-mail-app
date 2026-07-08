@@ -11,7 +11,9 @@ import type { EmailSummary } from "@/lib/gmail/mapper";
 import type { MailView } from "@/lib/gmail/queries";
 
 function prefetchEmail(id: string) {
-  preload(`/api/gmail/messages/${id}`, fetcher);
+  // Best-effort warm-up of the detail cache — a failed prefetch must stay
+  // silent (opening the email will fetch and surface errors properly).
+  preload(`/api/gmail/messages/${id}`, fetcher).catch(() => {});
 }
 
 export function EmailListItem({ email, view }: { email: EmailSummary; view: MailView }) {
