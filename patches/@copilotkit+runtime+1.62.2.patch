@@ -1,0 +1,38 @@
+diff --git a/node_modules/@copilotkit/runtime/dist/service-adapters/groq/groq-adapter.cjs b/node_modules/@copilotkit/runtime/dist/service-adapters/groq/groq-adapter.cjs
+index c345be5..6c57217 100644
+--- a/node_modules/@copilotkit/runtime/dist/service-adapters/groq/groq-adapter.cjs
++++ b/node_modules/@copilotkit/runtime/dist/service-adapters/groq/groq-adapter.cjs
+@@ -27,12 +27,12 @@ var GroqAdapter = class {
+ 		const groq = this.ensureGroq();
+ 		const options = require_sdk_client_utils.getSdkClientOptions(groq);
+ 		return (0, _ai_sdk_openai.createOpenAI)({
+-			baseURL: groq.baseURL,
++			baseURL: `${groq.baseURL}/openai/v1`,
+ 			apiKey: groq.apiKey,
+ 			headers: options.defaultHeaders,
+ 			fetch: options.fetch,
+ 			name: "groq"
+-		})(this.model);
++		}).chat(this.model);
+ 	}
+ 	ensureGroq() {
+ 		if (!this._groq) {
+diff --git a/node_modules/@copilotkit/runtime/dist/service-adapters/groq/groq-adapter.mjs b/node_modules/@copilotkit/runtime/dist/service-adapters/groq/groq-adapter.mjs
+index 5d186ee..79099a8 100644
+--- a/node_modules/@copilotkit/runtime/dist/service-adapters/groq/groq-adapter.mjs
++++ b/node_modules/@copilotkit/runtime/dist/service-adapters/groq/groq-adapter.mjs
+@@ -27,12 +27,12 @@ var GroqAdapter = class {
+ 		const groq = this.ensureGroq();
+ 		const options = getSdkClientOptions(groq);
+ 		return createOpenAI({
+-			baseURL: groq.baseURL,
++			baseURL: `${groq.baseURL}/openai/v1`,
+ 			apiKey: groq.apiKey,
+ 			headers: options.defaultHeaders,
+ 			fetch: options.fetch,
+ 			name: "groq"
+-		})(this.model);
++		}).chat(this.model);
+ 	}
+ 	ensureGroq() {
+ 		if (!this._groq) {
