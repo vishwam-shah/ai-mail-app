@@ -23,6 +23,23 @@ only answering questions in a chat window.
   Open action.
 - **Smart cursor pagination**, glassmorphism UI, dark mode, resizable assistant panel.
 
+## Screenshots
+
+**Inbox** — live Gmail data, filter bar, smart pagination, and the assistant panel:
+
+![Inbox with assistant panel](./screenshots/1.png)
+
+**Assistant-driven reply** — "reply to this mail" → "unsubscribe" drafts a complete reply into
+the real compose form (with one-click tone rewrites), and sending requires explicit
+confirmation on the card:
+
+![AI-drafted reply with confirm-send card](./screenshots/2.png)
+
+**Assistant-driven search** — "show me last 20 days mail" applies the date filter to the
+actual inbox list and previews results inline in chat:
+
+![Assistant filtering the inbox](./screenshots/3.png)
+
 ## Stack
 
 Next.js 16 (App Router) · TypeScript · Gmail API · Auth.js (Google OAuth) · Postgres (Neon) +
