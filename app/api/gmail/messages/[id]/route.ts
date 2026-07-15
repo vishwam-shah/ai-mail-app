@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSession } from "@/lib/api-guard";
+import { requireSession, withReauthHandling } from "@/lib/api-guard";
 import { getGmailClient } from "@/lib/gmail/client";
 import { mapMessageToDetail } from "@/lib/gmail/mapper";
 
-export async function GET(
+export const GET = withReauthHandling(async (
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const { session, error } = await requireSession();
   if (error) return error;
 
@@ -15,4 +15,4 @@ export async function GET(
 
   const res = await gmail.users.messages.get({ userId: "me", id, format: "full" });
   return NextResponse.json(mapMessageToDetail(res.data));
-}
+});

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireSession } from "@/lib/api-guard";
+import { requireSession, withReauthHandling } from "@/lib/api-guard";
 import { getGmailClient } from "@/lib/gmail/client";
 import { buildRawMessage } from "@/lib/gmail/mime";
 
@@ -13,7 +13,7 @@ const sendSchema = z.object({
   references: z.string().optional(),
 });
 
-export async function POST(request: NextRequest) {
+export const POST = withReauthHandling(async (request: NextRequest) => {
   const { session, error: authError } = await requireSession();
   if (authError) return authError;
 
@@ -40,4 +40,4 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ id: res.data.id, threadId: res.data.threadId });
-}
+});

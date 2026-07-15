@@ -51,6 +51,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
   },
+  events: {
+    // The Prisma adapter only persists tokens when an account is FIRST
+    // linked; on later sign-ins the fresh tokens Google just issued are
+    // dropped and the stored ones go stale (Google expires testing-mode
+    // refresh tokens after 7 days). Since we always request prompt=consent,
+    // every sign-in returns new tokens — persist them every time so signing
+    // in again always repairs an expired/revoked refresh token.
+    async signIn({ account }) {
+      if (!account?.access_token) return;
+      await prisma.account.update({
+        where: {
+          provider_providerAccountId: {
+            provider: account.provider,
+            providerAccountId: account.providerAccountId,
+          },
+        },
+        data: {
+          access_token: encryptToken(account.access_token),
+          refresh_token: account.refresh_token ? encryptToken(account.refresh_token) : undefined,
+          expires_at: account.expires_at,
+        },
+      });
+    },
+  },
   pages: {
     signIn: "/login",
   },

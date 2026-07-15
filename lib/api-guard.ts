@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { ReauthRequiredError } from "@/lib/google-auth";
 
 export interface AuthedSession {
   user: { id: string; email: string; name?: string | null; image?: string | null };
@@ -24,4 +25,24 @@ export async function requireSession(): Promise<RequireSessionResult> {
     return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
   return { session: session as AuthedSession };
+}
+
+/**
+ * Wraps a Gmail-backed route handler so a dead Google refresh token
+ * (ReauthRequiredError) surfaces as a 401 with code REAUTH_REQUIRED —
+ * the client signs the user out to re-consent — instead of a 500.
+ */
+export function withReauthHandling<Args extends unknown[]>(
+  handler: (...args: Args) => Promise<NextResponse>
+): (...args: Args) => Promise<NextResponse> {
+  return async (...args: Args) => {
+    try {
+      return await handler(...args);
+    } catch (err) {
+      if (err instanceof ReauthRequiredError) {
+        return NextResponse.json({ error: err.message, code: "REAUTH_REQUIRED" }, { status: 401 });
+      }
+      throw err;
+    }
+  };
 }

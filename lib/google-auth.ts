@@ -2,6 +2,22 @@ import { google } from "googleapis";
 import { prisma } from "@/lib/prisma";
 import { decryptToken, encryptToken } from "@/lib/crypto";
 
+// Thrown when Google refuses the refresh token (invalid_grant: expired or
+// revoked — e.g. testing-mode consents die after 7 days). Not a server bug:
+// the only fix is the user signing in again, so API routes translate this
+// into a 401 with code REAUTH_REQUIRED instead of a 500.
+export class ReauthRequiredError extends Error {
+  constructor() {
+    super("Google session expired or revoked — please sign in again.");
+    this.name = "ReauthRequiredError";
+  }
+}
+
+function isInvalidGrant(err: unknown): boolean {
+  const data = (err as { response?: { data?: { error?: string } } }).response?.data;
+  return data?.error === "invalid_grant" || (err as Error).message?.includes("invalid_grant");
+}
+
 // Returns a valid (non-expired) Gmail access token for the user, refreshing
 // and persisting a new one if the stored token is expired or about to expire.
 export async function getGoogleAccessToken(userId: string): Promise<string> {
@@ -20,7 +36,7 @@ export async function getGoogleAccessToken(userId: string): Promise<string> {
   }
 
   if (!account.refresh_token) {
-    throw new Error("Google account has no refresh token; user must re-consent");
+    throw new ReauthRequiredError();
   }
 
   const oauth2Client = new google.auth.OAuth2(
@@ -29,7 +45,13 @@ export async function getGoogleAccessToken(userId: string): Promise<string> {
   );
   oauth2Client.setCredentials({ refresh_token: decryptToken(account.refresh_token) });
 
-  const { credentials } = await oauth2Client.refreshAccessToken();
+  let credentials;
+  try {
+    ({ credentials } = await oauth2Client.refreshAccessToken());
+  } catch (err) {
+    if (isInvalidGrant(err)) throw new ReauthRequiredError();
+    throw err;
+  }
   if (!credentials.access_token) {
     throw new Error("Failed to refresh Google access token");
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { gmail_v1 } from "googleapis";
-import { requireSession } from "@/lib/api-guard";
+import { requireSession, withReauthHandling } from "@/lib/api-guard";
 import { getGmailClient } from "@/lib/gmail/client";
 import { mapMessageToSummary, type EmailSummary } from "@/lib/gmail/mapper";
 import { prisma } from "@/lib/prisma";
@@ -24,7 +24,7 @@ async function baselineCursor(gmail: gmail_v1.Gmail, userId: string): Promise<vo
 // cursor (GmailWatch.historyId) and reports inbox messages added since the
 // last poll. The client hits this on an interval; a Pub/Sub push pipeline
 // could later move the cursor server-side without changing this contract.
-export async function GET() {
+export const GET = withReauthHandling(async () => {
   const { session, error } = await requireSession();
   if (error) return error;
   const userId = session.user.id;
@@ -97,4 +97,4 @@ export async function GET() {
   }
 
   return NextResponse.json({ count: newIds.length, newMessages });
-}
+});

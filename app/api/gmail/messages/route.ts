@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSession } from "@/lib/api-guard";
+import { requireSession, withReauthHandling } from "@/lib/api-guard";
 import { getGmailClient } from "@/lib/gmail/client";
 import { mapMessageToSummary } from "@/lib/gmail/mapper";
 import { buildGmailQuery, type MailView } from "@/lib/gmail/queries";
@@ -11,7 +11,7 @@ const PAGE_SIZE = 50;
 // keep concurrent in-flight detail fetches well under that ceiling per page.
 const DETAIL_FETCH_CONCURRENCY = 10;
 
-export async function GET(request: NextRequest) {
+export const GET = withReauthHandling(async (request: NextRequest) => {
   const { session, error } = await requireSession();
   if (error) return error;
 
@@ -53,4 +53,4 @@ export async function GET(request: NextRequest) {
     messages,
     nextPageToken: listRes.data.nextPageToken ?? null,
   });
-}
+});

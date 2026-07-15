@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSession } from "@/lib/api-guard";
+import { requireSession, withReauthHandling } from "@/lib/api-guard";
 import { getGmailClient } from "@/lib/gmail/client";
 
 export interface Contact {
@@ -26,7 +26,7 @@ function parseAddressList(headerValue: string): Contact[] {
 // Resolves a name to Gmail contacts by searching past correspondence (Gmail
 // has no first-class contacts API scope here) — anyone who has emailed the
 // user or been emailed by them, matched against From/To headers.
-export async function GET(request: NextRequest) {
+export const GET = withReauthHandling(async (request: NextRequest) => {
   const { session, error } = await requireSession();
   if (error) return error;
 
@@ -68,4 +68,4 @@ export async function GET(request: NextRequest) {
   );
 
   return NextResponse.json({ contacts: Array.from(seen.values()).slice(0, 6) });
-}
+});
